@@ -1,6 +1,11 @@
 import csv
 import datetime
 import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV
 
 
 # ####################################
@@ -89,9 +94,31 @@ def data_set_gen():
                         site_row = next(site_reader, None)
 
 
-# clean_site()
-# data_set_gen()
-
 # ####################################
 # Part 2: Build Machine Learning Model
 # ####################################
+
+# Loading data
+df = pd.read_csv('dataset.csv', skiprows=2)
+feature_cols = ['TA', 'VPD_PI', 'PPFD_IN', 'NDVI']
+X = df.loc[:, feature_cols]
+y = df['GPP_PI_F']
+
+# Training classifiers
+reg1 = GradientBoostingRegressor(random_state=1, n_estimators=10)
+reg2 = RandomForestRegressor(random_state=1, n_estimators=20)
+reg1.fit(X, y)
+reg2.fit(X, y)
+
+xt = X[:3000]
+
+plt.figure()
+plt.plot(reg1.predict(xt), 'gd', label='GradientBoostingRegressor')
+plt.plot(reg2.predict(xt), 'b^', label='RandomForestRegressor')
+plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+plt.ylabel('predicted')
+plt.xlabel('training samples')
+plt.legend(loc="best")
+plt.show()
+
+n_iter_search = 20
