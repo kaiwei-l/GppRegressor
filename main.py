@@ -2,10 +2,13 @@ import csv
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from scipy import stats
 
 
 # ####################################
@@ -59,11 +62,11 @@ def clean_epic():
                         break
                 if valid_row:
                     try:
-                        ndvi = (float(r[8]) - float(r[7])) / (float(r[8]) + float(r[7]))
+                        nirv = (float(r[8]) - float(r[7])) / (float(r[8]) + float(r[7])) * float(r[8])
                         date_entry = r[0] + r[1].zfill(2) + r[2].zfill(2) + r[3].zfill(2) + r[4].zfill(2)
-                        wtr.writerow([date_entry, ndvi])
+                        wtr.writerow([date_entry, nirv])
                     except ValueError:
-                        wtr.writerow(["TIMESTAMP", "NDVI"])
+                        wtr.writerow(["TIMESTAMP", "NIRV"])
 
 
 def data_set_gen():
@@ -78,7 +81,7 @@ def data_set_gen():
                 wtr.writerow(next(site_reader))
                 wtr.writerow(next(site_reader))
                 indx_line = next(site_reader)
-                indx_line.insert(5, "NDVI")
+                indx_line.insert(5, "NIRV")
                 wtr.writerow(indx_line)
                 epic_row = next(epic_reader, None)
                 site_row = next(site_reader, None)
@@ -98,27 +101,41 @@ def data_set_gen():
 # Part 2: Build Machine Learning Model
 # ####################################
 
-# Loading data
-df = pd.read_csv('dataset.csv', skiprows=2)
-feature_cols = ['TA', 'VPD_PI', 'PPFD_IN', 'NDVI']
-X = df.loc[:, feature_cols]
-y = df['GPP_PI_F']
+def draw_graph(reg, X_test, y_test):
+    y_predict = reg.predict(X_test)
+    rmse_test = mean_squared_error(y_test, y_predict)
+    r2_score_test = r2_score(y_test, y_predict)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(y_test, y_predict)
+    line = slope * y_test + intercept
+    plt.plot(y_test, y_predict, 'o', y_test, line)
+    plt.text(17, 5, "rmse: " + str(rmse_test))
+    plt.text(17, 3, "r2 score: " + str(r2_score_test))
+    plt.xlabel("test data")
+    plt.ylabel("predict data")
+    plt.show()
 
-# Training classifiers
-reg1 = GradientBoostingRegressor(random_state=1, n_estimators=10)
-reg2 = RandomForestRegressor(random_state=1, n_estimators=20)
-reg1.fit(X, y)
-reg2.fit(X, y)
 
-xt = X[:3000]
+def random_forest_estimate():
+    # Loading data
+    df = pd.read_csv('dataset.csv', skiprows=2)
+    feature_cols = ['TA', 'VPD_PI', 'PPFD_IN', 'NIRV']
+    X = df.loc[:, feature_cols]
+    y = df['GPP_PI_F']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-plt.figure()
-plt.plot(reg1.predict(xt), 'gd', label='GradientBoostingRegressor')
-plt.plot(reg2.predict(xt), 'b^', label='RandomForestRegressor')
-plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-plt.ylabel('predicted')
-plt.xlabel('training samples')
-plt.legend(loc="best")
-plt.show()
+    # Training classifiers
+    # 1. Random Forest
+    gridsearch_forest = GridSearchCV(estimator=RandomForestRegressor(), param_grid={'max_depth': range(3, 7),
+                                                                                    'n_estimators': (
+                                                                                        10, 50, 100, 1000)},
+                                     cv=5, scoring='neg_mean_squared_error', verbose=0, n_jobs=-1)
+    grid_result_forest = gridsearch_forest.fit(X_train, y_train)
+    best_params_forest = grid_result_forest.best_params_
+    reg = RandomForestRegressor(max_depth=best_params_forest["max_depth"],
+                                n_estimators=best_params_forest["n_estimators"],
+                                random_state=False, verbose=False)
+    scores = cross_val_score(reg, X_train, y_train, cv=10, scoring='neg_mean_absolute_error')
+    print("scores: " + str(scores))
+    reg.fit(X_train, y_train)
+    draw_graph(reg, X_test, y_test)
 
-n_iter_search = 20
