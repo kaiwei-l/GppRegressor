@@ -5,6 +5,11 @@ import math
 import os
 import pandas as pd
 
+# ####################################
+# Author: Kaiwei Luo
+# Part 1: Data processing and cleaning
+# ####################################
+
 
 def check_dataset_validity():
     directory = os.fsencode("/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/Site-CSV/WET")
@@ -146,6 +151,10 @@ def site_sanitizer(inpath, outpath, epicpath):
         if filename.endswith(".csv"):
             file_path = inpath + filename
             site_sanitizer_aux(file_path, epicpath, sitelistdf, outpath)
+
+# ####################################
+# Part 2: Build Machine Learning Model
+# ####################################
 
 
 inpath = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/Site-CSV/WET/"
