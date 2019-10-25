@@ -4,6 +4,14 @@ import re
 import math
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from scipy import stats
 
 # ####################################
 # Author: Kaiwei Luo
@@ -157,7 +165,63 @@ def site_sanitizer(inpath, outpath, epicpath):
 # ####################################
 
 
+def draw_graph(reg, X_test, y_test, atitle, outputdir):
+    y_predict = reg.predict(X_test)
+    rmse_test = mean_squared_error(y_test, y_predict)
+    r2_score_test = r2_score(y_test, y_predict)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(y_test, y_predict)
+    line = slope * y_test + intercept
+    plt.plot(y_test, y_predict, 'o', y_test, line)
+    plt.text(17, 5, "rmse: " + str(rmse_test))
+    plt.text(17, 3, "r2 score: " + str(r2_score_test))
+    plt.xlabel("test data")
+    plt.ylabel("predict data")
+    plt.title(atitle)
+    output_path = outputdir + atitle + ".png"
+    plt.savefig(output_path)
+    plt.show()
+
+
+def random_forest_estimate(fname, outputdir):
+    # Loading data
+    figtitle = os.path.basename(fname)
+    figtitle = os.path.splitext(figtitle)[0][6:]
+    df = pd.read_csv(fname)
+    feature_cols = ['TA', 'VPD_PI', 'PPFD_IN', 'NIRV']
+    X = df.loc[:, feature_cols]
+    y = df['GPP_PI_F']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Training classifiers
+    # 1. Random Forest
+    gridsearch_forest = GridSearchCV(estimator=RandomForestRegressor(), param_grid={'max_depth': range(3, 7),
+                                                                                    'n_estimators': (
+                                                                                        10, 50, 100, 1000)},
+                                     cv=5, scoring='neg_mean_squared_error', verbose=0, n_jobs=-1)
+    grid_result_forest = gridsearch_forest.fit(X_train, y_train)
+    best_params_forest = grid_result_forest.best_params_
+    reg = RandomForestRegressor(max_depth=best_params_forest["max_depth"],
+                                n_estimators=best_params_forest["n_estimators"],
+                                random_state=False, verbose=False)
+    scores = cross_val_score(reg, X_train, y_train, cv=10, scoring='neg_mean_absolute_error')
+    print("scores: " + str(scores))
+    reg.fit(X_train, y_train)
+    draw_graph(reg, X_test, y_test, figtitle, outputdir)
+
+
+def regression_controller(datapath, outputpath):
+    directory = os.fsencode(datapath)
+    for file in os.listdir(directory):
+        filename = os.fsdecode(file)
+        if filename.endswith(".csv"):
+            filepath = datapath + "/" + filename
+            random_forest_estimate(filepath, outputpath)
+
+
 inpath = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/Site-CSV/WET/"
 outpath = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/DATASET-WET"
 epicpath = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/EPIC_data_update/"
-site_sanitizer(inpath, outpath, epicpath)
+dataset_dir = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/DATASET-WET"
+fig_output = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/DATASET-WET/"
+# site_sanitizer(inpath, outpath, epicpath)
+regression_controller(dataset_dir, fig_output)
