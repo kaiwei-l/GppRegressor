@@ -63,8 +63,8 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
     # Sanitizing Epic dataset
     nirv_list = []
     epic_date_list = []
+    print("I. EPIC " + siteid)
     for index, row in epicdf.iterrows():
-        print("I. EPIC " + siteid + " " + str(index))
         if row["Year"] == 0 or row["Month"] == 0 or row["Day"] == 0 or row["Hour"] == 0 or row["Minute"] == 0 or row[
                 "Second"] == 0 or row["Blue"] == 0 or row["Red"] == 0 or row["NIRS"] == 0:
             epicdf.drop(index, inplace=True)
@@ -80,8 +80,8 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
     epicdf['Datetime'] = epic_date_list
 
     df = df[['TIMESTAMP_START', 'TIMESTAMP_END', 'TA_F_MDS', 'PPFD_IN', 'VPD_F', 'GPP_NT_VUT_MEAN', 'GPP_NT_CUT_MEAN', 'GPP_DT_VUT_MEAN', 'GPP_DT_CUT_MEAN']]
+    print("II. Site " + siteid)
     for index, row in df.iterrows():
-        print("II. Site " + siteid + " " + str(index))
         if int(row['TIMESTAMP_START']) >= 201501010000:  # Check timestamp validity, must be later than 2015
             if row['TA_F_MDS'] == -9999.0 or row['PPFD_IN'] == -9999.0 or row['VPD_F'] == -9999.0 \
                     or row['GPP_NT_VUT_MEAN'] == -9999.0 or row['GPP_NT_CUT_MEAN'] == -9999.0 or row['GPP_DT_VUT_MEAN'] == -9999.0 or row['GPP_DT_CUT_MEAN'] == -9999.0:
@@ -96,31 +96,31 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
         else:
             df.drop(index, inplace=True)
 
-        # Merge dataframe
-        data = []
-        site_iter = df.iterrows()
-        epic_iter = epicdf.iterrows()
-        site_row = next(site_iter)
-        epic_row = next(epic_iter)
-        print("III. Merging...")
-        try:
-            while site_row is not None and epic_row is not None:
-                if int(site_row[1]['TIMESTAMP_START']) <= int(epic_row[1]['Datetime']) <= int(site_row[1]['TIMESTAMP_END']):
-                    row = site_row[1].tolist()
-                    row.append(epic_row[1]['NIRV'])
-                    data.append(row)
-                    site_row = next(site_iter)
+    # Merge dataframe
+    data = []
+    site_iter = df.iterrows()
+    epic_iter = epicdf.iterrows()
+    site_row = next(site_iter)
+    epic_row = next(epic_iter)
+    print("III. Merging...")
+    try:
+        while site_row is not None and epic_row is not None:
+            if int(site_row[1]['TIMESTAMP_START']) <= int(epic_row[1]['Datetime']) <= int(site_row[1]['TIMESTAMP_END']):
+                row = site_row[1].tolist()
+                row.append(epic_row[1]['NIRV'])
+                data.append(row)
+                site_row = next(site_iter)
+                epic_row = next(epic_iter)
+            else:
+                if int(epic_row[1]['Datetime']) < int(site_row[1]['TIMESTAMP_START']):
                     epic_row = next(epic_iter)
-                else:
-                    if int(epic_row[1]['Datetime']) < int(site_row[1]['TIMESTAMP_START']):
-                        epic_row = next(epic_iter)
-                    site_row = next(site_iter)
-        except Exception as e:
-            print(e)
-        mergedf = pd.DataFrame(data, columns=['TIMESTAMP_START', 'TIMESTAMP_END', 'TA_F_MDS', 'PPFD_IN', 'VPD_F', 'GPP_NT_VUT_MEAN',
-                                              'GPP_NT_CUT_MEAN', 'GPP_DT_VUT_MEAN', 'GPP_DT_CUT_MEAN', 'NIRV'])
-        new_fname = siteid + ".csv"
-        mergedf.to_csv(os.path.join(outputpath, new_fname), index=False)
+                site_row = next(site_iter)
+    except Exception as e:
+        print(e)
+    mergedf = pd.DataFrame(data, columns=['TIMESTAMP_START', 'TIMESTAMP_END', 'TA_F_MDS', 'PPFD_IN', 'VPD_F', 'GPP_NT_VUT_MEAN',
+                                          'GPP_NT_CUT_MEAN', 'GPP_DT_VUT_MEAN', 'GPP_DT_CUT_MEAN', 'NIRV'])
+    new_fname = siteid + ".csv"
+    mergedf.to_csv(os.path.join(outputpath, new_fname), index=False)
 
 
 def site_sanitizer(inpath, outpath, epicpath):
@@ -201,3 +201,4 @@ dataset_dir = "/Users/kaiweiluo/PycharmProjects/GppRegressor/new_data/"
 fig_output = "/Users/kaiweiluo/PycharmProjects/GppRegressor/results/"
 site_sanitizer(inpath, outpath, epicpath)
 #regression_controller(dataset_dir, fig_output)
+
