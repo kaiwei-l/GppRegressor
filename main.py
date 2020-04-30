@@ -79,22 +79,47 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
     epicdf['NIRV'] = nirv_list
     epicdf['Datetime'] = epic_date_list
 
-    df = df[['TIMESTAMP_START', 'TIMESTAMP_END', 'TA_F_MDS', 'PPFD_IN', 'VPD_F', 'GPP_NT_VUT_MEAN', 'GPP_NT_CUT_MEAN', 'GPP_DT_VUT_MEAN', 'GPP_DT_CUT_MEAN']]
+    # Sanitizing site data
+    dfIndex = ['TIMESTAMP_START', 'TIMESTAMP_END']
+    if 'TA_F_MDS' in df.columns:
+        dfIndex.append('TA_F_MDS')
+    if 'PPFD_IN' in df.columns:
+        dfIndex.append('PPFD_IN')
+    if 'VPD_F' in df.columns:
+        dfIndex.append('VPD_F')
+    if 'GPP_NT_VUT_MEAN' in df.columns:
+        dfIndex.append('GPP_NT_VUT_MEAN')
+    if 'GPP_NT_CUT_MEAN' in df.columns:
+        dfIndex.append('GPP_NT_CUT_MEAN')
+    if 'GPP_DT_VUT_MEAN' in df.columns:
+        dfIndex.append('GPP_DT_VUT_MEAN')
+    if 'GPP_DT_CUT_MEAN' in df.columns:
+        dfIndex.append('GPP_DT_CUT_MEAN')
+
+    # dataset has no useable data
+    if len(dfIndex) <= 2:
+        return
+
+    df = df[dfIndex]
+    df = df[df['TIMESTAMP_START'] >= 201501010000]
     print("II. Site " + siteid)
     for index, row in df.iterrows():
-        if int(row['TIMESTAMP_START']) >= 201501010000:  # Check timestamp validity, must be later than 2015
-            if row['TA_F_MDS'] == -9999.0 or row['PPFD_IN'] == -9999.0 or row['VPD_F'] == -9999.0 \
-                    or row['GPP_NT_VUT_MEAN'] == -9999.0 or row['GPP_NT_CUT_MEAN'] == -9999.0 or row['GPP_DT_VUT_MEAN'] == -9999.0 or row['GPP_DT_CUT_MEAN'] == -9999.0:
+        validRow = True
+        for i in range(2, len(dfIndex)):
+            field = dfIndex[i]
+            if float(row[field]) == -9999.0:
                 df.drop(index, inplace=True)
-            else:
-                # Adjust timestamp to UTC
-                new_start_datetime = timestamp_update(str(row['TIMESTAMP_START']), hrs)
-                new_end_datetime = timestamp_update(str(row['TIMESTAMP_END']), hrs)
-                df.at[index, 'TIMESTAMP_START'] = new_start_datetime
-                df.at[index, 'TIMESTAMP_END'] = new_end_datetime
-
-        else:
-            df.drop(index, inplace=True)
+                validRow = False
+                break
+        # if row['TA_F_MDS'] == -9999.0 or row['PPFD_IN'] == -9999.0 or row['VPD_F'] == -9999.0 \
+        #         or row['GPP_NT_VUT_MEAN'] == -9999.0 or row['GPP_NT_CUT_MEAN'] == -9999.0 or row['GPP_DT_VUT_MEAN'] == -9999.0 or row['GPP_DT_CUT_MEAN'] == -9999.0:
+        #     df.drop(index, inplace=True)
+        if validRow:
+            # Adjust timestamp to UTC
+            new_start_datetime = timestamp_update(str(row['TIMESTAMP_START']), hrs)
+            new_end_datetime = timestamp_update(str(row['TIMESTAMP_END']), hrs)
+            df.at[index, 'TIMESTAMP_START'] = new_start_datetime
+            df.at[index, 'TIMESTAMP_END'] = new_end_datetime
 
     # Merge dataframe
     data = []
@@ -117,8 +142,8 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
                 site_row = next(site_iter)
     except Exception as e:
         print(e)
-    mergedf = pd.DataFrame(data, columns=['TIMESTAMP_START', 'TIMESTAMP_END', 'TA_F_MDS', 'PPFD_IN', 'VPD_F', 'GPP_NT_VUT_MEAN',
-                                          'GPP_NT_CUT_MEAN', 'GPP_DT_VUT_MEAN', 'GPP_DT_CUT_MEAN', 'NIRV'])
+    dfIndex.append('NIRV') # columns list for merged df
+    mergedf = pd.DataFrame(data, columns=dfIndex)
     new_fname = siteid + ".csv"
     mergedf.to_csv(os.path.join(outputpath, new_fname), index=False)
 
@@ -155,7 +180,7 @@ def draw_graph(reg, X_test, y_test, atitle, outputdir):
     plt.title(atitle)
     output_path = outputdir + atitle + ".png"
     plt.savefig(output_path)
-    plt.show()
+    #plt.show()
 
 
 def random_forest_estimate(fname, outputdir):
@@ -163,9 +188,15 @@ def random_forest_estimate(fname, outputdir):
     figtitle = os.path.basename(fname)
     figtitle = os.path.splitext(figtitle)[0][6:]
     df = pd.read_csv(fname)
-    feature_cols = ['TA', 'VPD_PI', 'PPFD_IN', 'NIRV']
+    feature_cols = ['NIRV']
+    if 'TA_F_MDS' in df.columns:
+        feature_cols.append('TA_F_MDS')
+    if 'PPFD_IN' in df.columns:
+        feature_cols.append('PPFD_IN')
+    if 'VPD_F' in df.columns:
+        feature_cols.append('VPD_F')
     X = df.loc[:, feature_cols]
-    y = df['GPP_PI_F']
+    y = df['GPP_NT_VUT_MEAN']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Training classifiers
