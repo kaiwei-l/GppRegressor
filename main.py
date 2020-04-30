@@ -5,6 +5,7 @@ import math
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
@@ -58,24 +59,24 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
 
     df = pd.read_csv(fname)
     epicdf = pd.read_csv(epic_file, header=None)
-    epicdf.columns = ["Year", "Month", "Day", "Hour", "Minute", "Second", "Blue", "Red", "NIRS"]
+    epicdfIndex = ["Year", "Month", "Day", "Hour", "Minute", "Second", "Blue", "Red", "NIRS"]
+    epicdf.columns = epicdfIndex
 
     # Sanitizing Epic dataset
     nirv_list = []
     epic_date_list = []
     print("I. EPIC " + siteid)
+    for field in epicdfIndex:
+        epicdf = epicdf[epicdf[field] != 0]
+
     for index, row in epicdf.iterrows():
-        if row["Year"] == 0 or row["Month"] == 0 or row["Day"] == 0 or row["Hour"] == 0 or row["Minute"] == 0 or row[
-                "Second"] == 0 or row["Blue"] == 0 or row["Red"] == 0 or row["NIRS"] == 0:
-            epicdf.drop(index, inplace=True)
-        else:
-            nirv = (row['NIRS'] - row['Red']) / (row['NIRS'] + row['Red']) * row['NIRS']
-            nirv_list.append(nirv)
-            dateobj = datetime.datetime(int(row['Year']), int(row['Month']), int(row['Day']),
-                                        int(row['Hour']), int(row['Minute']))
-            new_date = str(dateobj.year) + str(dateobj.month).zfill(2) + str(dateobj.day).zfill(2) + \
-                       str(dateobj.hour).zfill(2) + str(dateobj.minute).zfill(2)
-            epic_date_list.append(new_date)
+        nirv = (row['NIRS'] - row['Red']) / (row['NIRS'] + row['Red']) * row['NIRS']
+        nirv_list.append(nirv)
+        dateobj = datetime.datetime(int(row['Year']), int(row['Month']), int(row['Day']),
+                                    int(row['Hour']), int(row['Minute']))
+        new_date = str(dateobj.year) + str(dateobj.month).zfill(2) + str(dateobj.day).zfill(2) + \
+                   str(dateobj.hour).zfill(2) + str(dateobj.minute).zfill(2)
+        epic_date_list.append(new_date)
     epicdf['NIRV'] = nirv_list
     epicdf['Datetime'] = epic_date_list
 
@@ -164,28 +165,31 @@ def draw_graph(reg, X_test, y_test, atitle, outputdir):
     slope, intercept, r_value, p_value, std_err = stats.linregress(y_test, y_predict)
     line = slope * y_test + intercept
     plt.plot(y_test, y_predict, 'o', y_test, line)
-    plt.text(17, 5, "rmse: " + str(rmse_test))
-    plt.text(17, 3, "r2 score: " + str(r2_score_test))
+    #plt.text(0.5, 0.95, "rmse: " + str(rmse_test) + "\nr2 score: " + str(r2_score_test), horizontalalignment='left', verticalalignment='top')
+    # plt.text(0.5, 0.5, "r2 score: " + str(r2_score_test))
+    title = atitle + " rmse: " + str(rmse_test) + " r2 score: " + str(r2_score_test)
     plt.xlabel("test data")
     plt.ylabel("predict data")
-    plt.title(atitle)
+    plt.title(title)
     output_path = outputdir + atitle + ".png"
     plt.savefig(output_path)
     #plt.show()
+    plt.clf()
 
 
 def random_forest_estimate(fname, outputdir):
     # Loading data
-    figtitle = os.path.basename(fname)
-    figtitle = os.path.splitext(figtitle)[0][6:]
+    figtitle = os.path.basename(fname).split('.')[0]
+
     df = pd.read_csv(fname)
     feature_cols = ['NIRV']
-    if 'TA_F_MDS' in df.columns:
-        feature_cols.append('TA_F_MDS')
+    # Features selection
+    # if 'TA_F_MDS' in df.columns:
+    #     feature_cols.append('TA_F_MDS')
     if 'PPFD_IN' in df.columns:
         feature_cols.append('PPFD_IN')
-    if 'VPD_F' in df.columns:
-        feature_cols.append('VPD_F')
+    # if 'VPD_F' in df.columns:
+    #     feature_cols.append('VPD_F')
     X = df.loc[:, feature_cols]
     y = df['GPP_NT_VUT_MEAN']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
