@@ -102,24 +102,15 @@ def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
 
     df = df[dfIndex]
     df = df[df['TIMESTAMP_START'] >= 201501010000]
+    for i in range(2, len(dfIndex)):
+        df = df[df[dfIndex[i]] != -9999.0]
     print("II. Site " + siteid)
     for index, row in df.iterrows():
-        validRow = True
-        for i in range(2, len(dfIndex)):
-            field = dfIndex[i]
-            if float(row[field]) == -9999.0:
-                df.drop(index, inplace=True)
-                validRow = False
-                break
-        # if row['TA_F_MDS'] == -9999.0 or row['PPFD_IN'] == -9999.0 or row['VPD_F'] == -9999.0 \
-        #         or row['GPP_NT_VUT_MEAN'] == -9999.0 or row['GPP_NT_CUT_MEAN'] == -9999.0 or row['GPP_DT_VUT_MEAN'] == -9999.0 or row['GPP_DT_CUT_MEAN'] == -9999.0:
-        #     df.drop(index, inplace=True)
-        if validRow:
-            # Adjust timestamp to UTC
-            new_start_datetime = timestamp_update(str(row['TIMESTAMP_START']), hrs)
-            new_end_datetime = timestamp_update(str(row['TIMESTAMP_END']), hrs)
-            df.at[index, 'TIMESTAMP_START'] = new_start_datetime
-            df.at[index, 'TIMESTAMP_END'] = new_end_datetime
+        # Adjust timestamp to UTC
+        new_start_datetime = timestamp_update(str(row['TIMESTAMP_START']), hrs)
+        new_end_datetime = timestamp_update(str(row['TIMESTAMP_END']), hrs)
+        df.at[index, 'TIMESTAMP_START'] = new_start_datetime
+        df.at[index, 'TIMESTAMP_END'] = new_end_datetime
 
     # Merge dataframe
     data = []
