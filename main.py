@@ -19,21 +19,6 @@ from scipy import stats
 # Part 1: Data processing and cleaning
 # ####################################
 
-
-def check_dataset_validity():
-    directory = os.fsencode("/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/Site-CSV/WET")
-    for file in os.listdir(directory):
-        filename = os.fsdecode(file)
-        if filename.endswith(".csv"):
-            file_path = "/Users/kaiweiluo/PycharmProjects/Machine-Learning-NASA/Site-CSV/WET/" + filename
-            df = pd.read_csv(file_path, header=2)
-            if 'GPP_PI_F' in df.columns and 'PPFD_IN' in df.columns:
-                print("==================")
-                print(filename)
-                print("Has GPP and PPFD_IN: True")
-                print("==================\n")
-
-
 def timestamp_update(timestamp, hrs):
     date_add_hrs = datetime.datetime(int(timestamp[0:4]), int(timestamp[4:6]), int(timestamp[6:8]),
                                      int(timestamp[8:10]), int(timestamp[10:12])) + \
@@ -45,11 +30,6 @@ def timestamp_update(timestamp, hrs):
 
 
 def site_sanitizer_aux(fname, epic_prefix, sitelistdf, outputpath):
-    # ===========================
-    # Issue 1: PPFD not found: Solved
-    # Issue 2: GPP_PI_F_1_2, Multiple name, OWN
-    # ===========================
-
     siteid = fname.split('/')[-1].split('_')[1]
 
     siteinfo = sitelistdf.loc[sitelistdf['SiteId'] == siteid]
